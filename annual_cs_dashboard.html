@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>契約状況 四象限マップ</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>
+  <style>
+    body { 
+      margin: 0; 
+      padding: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', sans-serif; 
+      background: #fff;
+    }
+    h2 { text-align: center; margin-bottom: 5px; }
+    .subtitle { text-align: center; color: #666; font-size: 14px; margin-top: 0; }
+    .filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px; justify-content: center; }
+    .filters button {
+      padding: 6px 12px;
+      font-size: 12px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .filters button.inactive { opacity: 0.4; background: #f5f5f5 !important; color: #333 !important; }
+    .chart-container { width: 100%; max-width: 900px; margin: 0 auto; }
+    .legend { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; margin-top: 15px; font-size: 12px; }
+    .legend-item { display: flex; align-items: center; gap: 5px; }
+    .legend-color { width: 12px; height: 12px; border-radius: 50%; }
+    .quadrant-guide {
+      margin-top: 20px;
+      padding: 15px;
+      background: #f9f9f9;
+      border-radius: 8px;
+      max-width: 900px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .quadrant-guide h4 { margin: 0 0 10px 0; }
+    .quadrant-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px; }
+    .quadrant-grid > div { padding: 8px; border-radius: 4px; }
+    .q-tr { background: #ffebee; }
+    .q-tl { background: #fff3e0; }
+    .q-br { background: #e3f2fd; }
+    .q-bl { background: #e8f5e9; }
+  </style>
+</head>
+<body>
+  <h2>契約状況 四象限マップ</h2>
+  <p class="subtitle">基準日: 2026年1月5日</p>
+  
+  <div class="filters" id="filters"></div>
+  
+  <div class="chart-container">
+    <canvas id="chart"></canvas>
+  </div>
+  
+  <div class="legend" id="legend"></div>
+  
+  <div class="quadrant-guide">
+    <h4>📍 四象限の見方</h4>
+    <div class="quadrant-grid">
+      <div class="q-tr"><strong>🔴 右上（要注意）</strong><br>残り少ない × 経過率高い<br>→ 契約終了間近！</div>
+      <div class="q-tl"><strong>🟡 左上</strong><br>残り多い × 経過率高い<br>→ 長期契約の後半</div>
+      <div class="q-br"><strong>🔵 右下</strong><br>残り少ない × 経過率低い<br>→ 短期契約の序盤</div>
+      <div class="q-bl"><strong>🟢 左下（安心）</strong><br>残り多い × 経過率低い<br>→ まだまだ余裕あり</div>
+    </div>
+  </div>
+
+  <script>
+    const rawData = [
+      { name: "JFEエンジニアリング", fullName: "JFEエンジニアリング株式会社_スターター_環境本部_2504-2603", stage: "22_パイロット", remainingDays: 85, progressRate: 76.6, amount: 100000, owner: "佐藤 哲太" },
+      { name: "センスビー", fullName: "株式会社センスビー_スターター_本社工場（神奈川）_2505-2604", stage: "21_セットアップ中", remainingDays: 115, progressRate: 68.4, amount: 10000, owner: "中山 徹" },
+      { name: "サーモテック", fullName: "株式会社サーモテック_スターター_本社工場（大阪）_2502-3001", stage: "21_セットアップ中", remainingDays: 1487, progressRate: 18.5, amount: 56000, owner: "中山 徹" },
+      { name: "日本ケロッグ", fullName: "日本ケロッグ合同会社_スターター_群馬工場_2508-2608", stage: "23_モメンタム", remainingDays: 238, progressRate: 37.0, amount: 150000, owner: "佐藤 哲太" },
+      { name: "タチエス", fullName: "株式会社タチエス_スターター_愛知/武蔵/鈴鹿工場_2508-2607", stage: "23_モメンタム", remainingDays: 207, progressRate: 43.1, amount: 100000, owner: "佐藤 哲太" },
+      { name: "日本触媒", fullName: "株式会社日本触媒_プロフェッショナル_姫路工場_2508-2608", stage: "21_セットアップ中", remainingDays: 238, progressRate: 37.0, amount: 380000, owner: "佐藤 哲太" },
+      { name: "東洋新薬", fullName: "株式会社東洋新薬_スターター_鳥栖工場_2507-2706", stage: "21_セットアップ中", remainingDays: 541, progressRate: 25.8, amount: 130000, owner: "佐藤 哲太" },
+      { name: "イワサキ", fullName: "株式会社イワサキ_スターター_大阪工場_2502-2601", stage: "25_チャーンリスク", remainingDays: 26, progressRate: 92.9, amount: 40000, owner: "佐藤 哲太" },
+      { name: "クライン", fullName: "株式会社クライン_青梅工場_2504-2603", stage: "21_セットアップ中", remainingDays: 85, progressRate: 76.6, amount: 50000, owner: "佐藤 哲太" },
+      { name: "ネクサス", fullName: "株式会社ネクサス_スターター_岩手工場_2502-2601", stage: "21_セットアップ中", remainingDays: 26, progressRate: 92.9, amount: 100000, owner: "佐藤 哲太" },
+      { name: "サンコー", fullName: "株式会社サンコー_堀金工場（長野）三田工場（長野）_2507-2608", stage: "22_パイロット", remainingDays: 238, progressRate: 44.1, amount: 100000, owner: "中山 徹" },
+      { name: "サンショウ", fullName: "サンショウ株式会社_スターター_浜松工場_2507-2606", stage: "23_モメンタム", remainingDays: 176, progressRate: 51.6, amount: 80000, owner: "佐藤 哲太" },
+      { name: "長坂樹脂工業", fullName: "有限会社長坂樹脂工業_スターター_岡崎工場_2510-2609", stage: "24_ステーブル", remainingDays: -5, progressRate: 105.5, amount: 50000, owner: "佐藤 哲太" },
+      { name: "シギヤ精機(26)", fullName: "株式会社シギヤ精機製作所_スターター_本社工場（広島）_2510-2512", stage: "26_CS対応リリース", remainingDays: -5, progressRate: 105.5, amount: 50000, owner: "佐藤 哲太" },
+      { name: "北陸建工(追加)", fullName: "北陸建工株式会社_iPad追加分_安田工場（富山）_2601-2703", stage: "28_契約更新完了", remainingDays: 450, progressRate: 0.9, amount: 105000, owner: "中山 徹" },
+      { name: "北陸建工", fullName: "北陸建工株式会社_スターター_安田工場（富山）_2504-2703", stage: "22_パイロット", remainingDays: 450, progressRate: 38.3, amount: 70000, owner: "中山 徹" },
+      { name: "シギヤ精機(28a)", fullName: "株式会社シギヤ精機製作所_スターター_本社工場（広島）_2507-2509", stage: "28_契約更新完了", remainingDays: -97, progressRate: 206.6, amount: 50000, owner: "落合 豊" },
+      { name: "シギヤ精機(28b)", fullName: "株式会社シギヤ精機製作所_スターター_本社工場（広島）_2504-2506", stage: "28_契約更新完了", remainingDays: -189, progressRate: 310.0, amount: 50000, owner: "落合 豊" },
+      { name: "ハイレックス", fullName: "株式会社ハイレックスコーポレーション_スターター_三ヶ日工場（静岡）_2507-3006", stage: "22_パイロット", remainingDays: 1637, progressRate: 10.3, amount: 80000, owner: "中山 徹" },
+      { name: "旭光電機", fullName: "旭光電機株式会社_スターター_明石工場（兵庫）_2506-2705", stage: "22_パイロット", remainingDays: 511, progressRate: 29.9, amount: 70000, owner: "中山 徹" },
+      { name: "ハイレックス宮城", fullName: "株式会社ハイレックス宮城_スターター_宮城工場（宮城）_2509-3008", stage: "21_セットアップ中", remainingDays: 1699, progressRate: 6.5, amount: 80000, owner: "中山 徹" },
+      { name: "MERF", fullName: "株式会社MERF_スターター_本社工場（富山）_2504-3003", stage: "21_セットアップ中", remainingDays: 1546, progressRate: 15.3, amount: 65000, owner: "中山 徹" },
+      { name: "大登建設工業", fullName: "大登建設工業株式会社_プラン名_伊万里工場（佐賀）_2505-2604", stage: "22_パイロット", remainingDays: 115, progressRate: 66.1, amount: 68000, owner: "中山 徹" },
+      { name: "エア・ウォーター防災", fullName: "エア・ウォーター防災株式会社_スターター_本社工場（兵庫）_2507-2606", stage: "23_モメンタム", remainingDays: 176, progressRate: 51.6, amount: 100000, owner: "中山 徹" },
+      { name: "昭和金属(28)", fullName: "昭和金属工業株式会社_スターター_大分工場（大分）_2408-2507", stage: "28_契約更新完了", remainingDays: -158, progressRate: 143.4, amount: 50000, owner: "落合 豊" },
+      { name: "シギヤ精機(28c)", fullName: "株式会社シギヤ精機製作所_スターター_本社工場（広島）_2410-2503", stage: "28_契約更新完了", remainingDays: -297, progressRate: 281.1, amount: 50000, owner: "落合 豊" },
+      { name: "日金(解約)", fullName: "株式会社日金_Renewal", stage: "29_解約", remainingDays: -57, progressRate: 100, amount: 50000, owner: "落合 豊" },
+      { name: "島田工業", fullName: "島田工業株式会社_スターター_本社・第一工場（群馬）_2502-2701", stage: "22_パイロット", remainingDays: 391, progressRate: 46.4, amount: 40000, owner: "中山 徹" },
+      { name: "スザキ工業所", fullName: "株式会社スザキ工業所_スターター_本社工場（岐阜）_2504-2703", stage: "24_ステーブル", remainingDays: 450, progressRate: 38.3, amount: 100000, owner: "中山 徹" },
+      { name: "ゼンショー", fullName: "株式会社ゼンショーファクトリーホールディングス_スターター_～～工場（XX）_2502-2701", stage: "22_パイロット", remainingDays: 391, progressRate: 46.4, amount: 70000, owner: "佐藤 哲太" },
+      { name: "松本工業(27)", fullName: "松本工業株式会社_スターター_豊前工場（大分）_2412-2511", stage: "27_契約更新合意", remainingDays: -36, progressRate: 109.9, amount: 50000, owner: "中山 徹" },
+      { name: "松本工業(新)", fullName: "松本工業株式会社_スターター_豊前工場（大分）_2512-2611", stage: "23_モメンタム", remainingDays: 329, progressRate: 9.6, amount: 50000, owner: "中山 徹" },
+      { name: "理学相原精機", fullName: "株式会社理学相原精機_スターター_本社工場（東京）_250808-260807", stage: "22_パイロット", remainingDays: 214, progressRate: 41.2, amount: 50000, owner: "佐藤 哲太" },
+      { name: "太平洋マテリアル", fullName: "太平洋マテリアル株式会社_熊谷工場（埼玉）小野田工場（山口）西多摩工場（東京）_2503-2602", stage: "22_パイロット", remainingDays: 54, progressRate: 85.2, amount: 100000, owner: "佐藤 哲太" },
+      { name: "昭和金属(伊万里)", fullName: "昭和金属工業株式会社_スターター_伊万里工場（広島）_2502-2601", stage: "22_パイロット", remainingDays: 26, progressRate: 92.9, amount: 50000, owner: "中山 徹" },
+      { name: "昭和金属(大分)", fullName: "昭和金属工業株式会社_スターター_大分工場（大分）_2508-2607", stage: "24_ステーブル", remainingDays: 207, progressRate: 43.1, amount: 50000, owner: "中山 徹" },
+    ];
+
+    const stageConfig = {
+      "21_セットアップ中": { label: "セットアップ中", color: "#00bcd4" },
+      "22_パイロット": { label: "パイロット", color: "#f44336" },
+      "23_モメンタム": { label: "モメンタム", color: "#ffeb3b", border: "#888" },
+      "24_ステーブル": { label: "ステーブル", color: "#4caf50" },
+      "25_チャーンリスク": { label: "チャーンリスク", color: "#9c27b0" },
+      "26_CS対応リリース": { label: "CS対応リリース", color: "#9e9e9e" },
+      "27_契約更新合意": { label: "契約更新合意", color: "#2196f3" },
+      "28_契約更新完了": { label: "契約更新完了", color: "#2196f3" },
+      "29_解約": { label: "解約", color: "#000000" },
+    };
+
+    let selectedStages = new Set(Object.keys(stageConfig));
+    let chart;
+
+    // フィルターボタンを作成
+    const filtersDiv = document.getElementById('filters');
+    Object.entries(stageConfig).forEach(([stage, config]) => {
+      const btn = document.createElement('button');
+      btn.textContent = config.label;
+      btn.dataset.stage = stage;
+      btn.style.background = config.color;
+      btn.style.color = ['22_パイロット', '25_チャーンリスク', '29_解約'].includes(stage) ? 'white' : 'black';
+      btn.onclick = () => toggleStage(stage, btn);
+      filtersDiv.appendChild(btn);
+    });
+
+    function toggleStage(stage, btn) {
+      if (selectedStages.has(stage)) {
+        selectedStages.delete(stage);
+        btn.classList.add('inactive');
+      } else {
+        selectedStages.add(stage);
+        btn.classList.remove('inactive');
+      }
+      updateChart();
+    }
+
+    function getFilteredData() {
+      return rawData.filter(d => 
+        selectedStages.has(d.stage) && 
+        d.remainingDays >= 0 && 
+        d.progressRate <= 100
+      );
+    }
+
+    function createDatasets() {
+      const grouped = {};
+      getFilteredData().forEach(d => {
+        if (!grouped[d.stage]) grouped[d.stage] = [];
+        grouped[d.stage].push({ x: d.remainingDays, y: d.progressRate, raw: d });
+      });
+
+      return Object.entries(grouped).map(([stage, points]) => ({
+        label: stageConfig[stage].label,
+        data: points,
+        backgroundColor: stageConfig[stage].color,
+        borderColor: stageConfig[stage].border || stageConfig[stage].color,
+        borderWidth: stageConfig[stage].border ? 2 : 1,
+        pointRadius: 8,
+        pointHoverRadius: 10,
+      }));
+    }
+
+    function initChart() {
+      const ctx = document.getElementById('chart').getContext('2d');
+      chart = new Chart(ctx, {
+        type: 'scatter',
+        data: { datasets: createDatasets() },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          scales: {
+            x: {
+              reverse: true,
+              min: 0,
+              max: 600,
+              title: { display: true, text: '← 残り日数多い　　　　残り日数少ない →' },
+              ticks: { callback: v => v + '日' }
+            },
+            y: {
+              min: 0,
+              max: 100,
+              title: { display: true, text: '経過率 (%)' },
+              ticks: { callback: v => v + '%' }
+            }
+          },
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: (ctx) => {
+                  const d = ctx.raw.raw;
+                  return [
+                    d.fullName,
+                    `ステージ: ${stageConfig[d.stage].label}`,
+                    `残り日数: ${d.remainingDays}日`,
+                    `経過率: ${d.progressRate}%`,
+                    `月額: ¥${d.amount.toLocaleString()}`,
+                    `担当: ${d.owner}`
+                  ];
+                }
+              }
+            },
+            legend: { display: false },
+            annotation: {
+              annotations: {
+                line1: { type: 'line', xMin: 180, xMax: 180, borderColor: '#999', borderDash: [5, 5], label: { content: '残り180日', enabled: true, position: 'start' } },
+                line2: { type: 'line', yMin: 50, yMax: 50, borderColor: '#999', borderDash: [5, 5], label: { content: '50%経過', enabled: true, position: 'end' } }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function updateChart() {
+      chart.data.datasets = createDatasets();
+      chart.update();
+    }
+
+    // 凡例を作成
+    const legendDiv = document.getElementById('legend');
+    Object.entries(stageConfig).forEach(([stage, config]) => {
+      const item = document.createElement('div');
+      item.className = 'legend-item';
+      item.innerHTML = `<div class="legend-color" style="background:${config.color};${config.border ? 'border:2px solid '+config.border : ''}"></div><span>${config.label}</span>`;
+      legendDiv.appendChild(item);
+    });
+
+    initChart();
+  </script>
+</body>
+</html>
