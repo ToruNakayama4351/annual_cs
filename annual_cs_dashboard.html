@@ -3,242 +3,756 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>契約状況 四象限マップ</title>
+  <title>トライアルCSパイプライン分析 | 2026-01-07</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>
   <style>
-    body { 
-      margin: 0; 
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', sans-serif;
+      background: linear-gradient(135deg, #f5f7fa 0%, #e4e9f2 100%);
+      min-height: 100vh;
+      padding: 24px;
+      color: #1f2937;
+    }
+    .container { max-width: 1400px; margin: 0 auto; }
+    .header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    .header h1 {
+      font-size: 2rem;
+      color: #1e40af;
+      margin-bottom: 8px;
+    }
+    .header p { color: #6b7280; }
+    
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    .kpi-card {
+      background: white;
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+      border-left: 4px solid;
+    }
+    .kpi-card.blue { border-color: #3b82f6; }
+    .kpi-card.green { border-color: #10b981; }
+    .kpi-card.yellow { border-color: #f59e0b; }
+    .kpi-card.purple { border-color: #8b5cf6; }
+    .kpi-card.red { border-color: #ef4444; }
+    .kpi-label { font-size: 0.875rem; color: #6b7280; }
+    .kpi-value { font-size: 2rem; font-weight: 700; margin: 8px 0; }
+    .kpi-card.blue .kpi-value { color: #3b82f6; }
+    .kpi-card.green .kpi-value { color: #10b981; }
+    .kpi-card.yellow .kpi-value { color: #f59e0b; }
+    .kpi-card.purple .kpi-value { color: #8b5cf6; }
+    .kpi-card.red .kpi-value { color: #ef4444; }
+    .kpi-subtext { font-size: 0.75rem; color: #9ca3af; }
+    
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+    .chart-card {
+      background: white;
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    }
+    .chart-card h3 {
+      font-size: 1.125rem;
+      color: #374151;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #e5e7eb;
+    }
+    .chart-container { position: relative; height: 300px; }
+    
+    .owner-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    .owner-card {
+      background: white;
+      border-radius: 16px;
       padding: 20px;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', sans-serif; 
-      background: #fff;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
     }
-    h2 { text-align: center; margin-bottom: 5px; }
-    .subtitle { text-align: center; color: #666; font-size: 14px; margin-top: 0; }
-    .filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px; justify-content: center; }
-    .filters button {
-      padding: 6px 12px;
-      font-size: 12px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: opacity 0.2s;
+    .owner-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
     }
-    .filters button.inactive { opacity: 0.4; background: #f5f5f5 !important; color: #333 !important; }
-    .chart-container { width: 100%; max-width: 900px; margin: 0 auto; }
-    .legend { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; margin-top: 15px; font-size: 12px; }
-    .legend-item { display: flex; align-items: center; gap: 5px; }
-    .legend-color { width: 12px; height: 12px; border-radius: 50%; }
-    .quadrant-guide {
-      margin-top: 20px;
-      padding: 15px;
-      background: #f9f9f9;
+    .owner-avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 700;
+      font-size: 1.25rem;
+    }
+    .owner-name { font-weight: 600; font-size: 1.125rem; }
+    .owner-count { color: #6b7280; font-size: 0.875rem; }
+    .owner-stats { display: flex; flex-direction: column; gap: 8px; }
+    .owner-stat {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    .owner-stat:last-child { border-bottom: none; }
+    .stat-label { color: #6b7280; }
+    .stat-value { font-weight: 600; }
+    .stat-commit { color: #10b981; }
+    .stat-upside { color: #f59e0b; }
+
+    .arr-scenario {
+      background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
+      border-radius: 16px;
+      padding: 24px;
+      color: white;
+      margin-bottom: 32px;
+    }
+    .arr-scenario h3 {
+      font-size: 1.25rem;
+      margin-bottom: 8px;
+    }
+    .arr-scenario .subtitle {
+      color: #93c5fd;
+      margin-bottom: 24px;
+    }
+    .arr-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .arr-table th, .arr-table td {
+      padding: 12px 16px;
+      text-align: left;
+    }
+    .arr-table th {
+      color: #93c5fd;
+      font-weight: 500;
+      border-bottom: 1px solid #3b82f6;
+    }
+    .arr-table td {
+      font-size: 1.125rem;
+    }
+    .arr-table tr:not(:last-child) td {
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .arr-highlight {
+      color: #fbbf24;
+      font-weight: 700;
+    }
+    
+    .table-card {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+      overflow: hidden;
+      margin-bottom: 32px;
+    }
+    .table-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid #e5e7eb;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .table-header h3 { font-size: 1.125rem; color: #374151; }
+    .table-summary { 
+      background: #10b981; 
+      color: white; 
+      padding: 8px 16px; 
       border-radius: 8px;
-      max-width: 900px;
-      margin-left: auto;
-      margin-right: auto;
+      font-weight: 600;
     }
-    .quadrant-guide h4 { margin: 0 0 10px 0; }
-    .quadrant-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px; }
-    .quadrant-grid > div { padding: 8px; border-radius: 4px; }
-    .q-tr { background: #ffebee; }
-    .q-tl { background: #fff3e0; }
-    .q-br { background: #e3f2fd; }
-    .q-bl { background: #e8f5e9; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th {
+      background: #f9fafb;
+      padding: 12px 16px;
+      text-align: left;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    td {
+      padding: 12px 16px;
+      border-bottom: 1px solid #f3f4f6;
+      font-size: 0.875rem;
+    }
+    tr:hover { background: #f9fafb; }
+    .owner-tag {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: white;
+    }
+    .owner-sato { background: #3b82f6; }
+    .owner-nakayama { background: #10b981; }
+    .owner-koya { background: #f59e0b; }
+    .badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+    .badge-commit { background: #d1fae5; color: #065f46; }
+    .badge-upside { background: #fef3c7; color: #92400e; }
+    .overdue { color: #ef4444; font-weight: 600; }
+    
+    .footer {
+      text-align: center;
+      color: #9ca3af;
+      font-size: 0.875rem;
+      padding: 24px;
+    }
+    
+    @media (max-width: 768px) {
+      .charts-grid { grid-template-columns: 1fr; }
+      .chart-container { height: 250px; }
+    }
   </style>
 </head>
 <body>
-  <h2>契約状況 四象限マップ</h2>
-  <p class="subtitle">基準日: 2026年1月5日</p>
-  
-  <div class="filters" id="filters"></div>
-  
-  <div class="chart-container">
-    <canvas id="chart"></canvas>
-  </div>
-  
-  <div class="legend" id="legend"></div>
-  
-  <div class="quadrant-guide">
-    <h4>📍 四象限の見方</h4>
-    <div class="quadrant-grid">
-      <div class="q-tr"><strong>🔴 右上（要注意）</strong><br>残り少ない × 経過率高い<br>→ 契約終了間近！</div>
-      <div class="q-tl"><strong>🟡 左上</strong><br>残り多い × 経過率高い<br>→ 長期契約の後半</div>
-      <div class="q-br"><strong>🔵 右下</strong><br>残り少ない × 経過率低い<br>→ 短期契約の序盤</div>
-      <div class="q-bl"><strong>🟢 左下（安心）</strong><br>残り多い × 経過率低い<br>→ まだまだ余裕あり</div>
+  <div class="container">
+    <div class="header">
+      <h1>📊 トライアルCSパイプライン分析</h1>
+      <p>分析日: 2026-01-07 | ミライのゲンバ帳票</p>
+    </div>
+    
+    <!-- KPI Cards -->
+    <div class="kpi-grid">
+      <div class="kpi-card blue">
+        <div class="kpi-label">アクティブ案件</div>
+        <div class="kpi-value">28件</div>
+        <div class="kpi-subtext">総数81件</div>
+      </div>
+      <div class="kpi-card green">
+        <div class="kpi-label">CVR</div>
+        <div class="kpi-value">64.2%</div>
+        <div class="kpi-subtext">34成約 / 53決着</div>
+      </div>
+      <div class="kpi-card yellow">
+        <div class="kpi-label">既存ARR</div>
+        <div class="kpi-value">¥1,200万</div>
+        <div class="kpi-subtext">積み上げ済み</div>
+      </div>
+      <div class="kpi-card red">
+        <div class="kpi-label">目標ARR</div>
+        <div class="kpi-value">¥8,000万</div>
+        <div class="kpi-subtext">2026年末目標</div>
+      </div>
+    </div>
+
+    <!-- ARR Scenario -->
+    <div class="arr-scenario">
+      <h3>【2026年末ARR見込み】</h3>
+      <p class="subtitle">現状ペース維持で 約5,800万円（ベースシナリオ）</p>
+      <table class="arr-table">
+        <thead>
+          <tr>
+            <th>シナリオ</th>
+            <th>CVR</th>
+            <th>ARR</th>
+            <th>目標との差</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>保守</td>
+            <td>60%</td>
+            <td>4,625万円</td>
+            <td style="color: #f87171;">▲3,375万円</td>
+          </tr>
+          <tr>
+            <td>ベース</td>
+            <td>75%</td>
+            <td class="arr-highlight">5,781万円</td>
+            <td style="color: #f87171;">▲2,219万円</td>
+          </tr>
+          <tr>
+            <td>強気</td>
+            <td>85%</td>
+            <td>6,552万円</td>
+            <td style="color: #f87171;">▲1,448万円</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <!-- Charts -->
+    <div class="charts-grid">
+      <div class="chart-card">
+        <h3>📈 月別クローズ予測</h3>
+        <div class="chart-container">
+          <canvas id="monthlyChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <h3>🎯 2026年末 ARR予測シナリオ</h3>
+        <div class="chart-container">
+          <canvas id="arrChart"></canvas>
+        </div>
+      </div>
+    </div>
+    
+    <div class="charts-grid">
+      <div class="chart-card">
+        <h3>👤 担当者別パイプライン（アクティブ28件）</h3>
+        <div class="chart-container">
+          <canvas id="ownerChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <h3>🥧 CVR内訳</h3>
+        <div class="chart-container">
+          <canvas id="cvrChart"></canvas>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Owner Cards -->
+    <div class="owner-cards">
+      <div class="owner-card">
+        <div class="owner-header">
+          <div class="owner-avatar" style="background: #3b82f6;">佐</div>
+          <div>
+            <div class="owner-name">佐藤</div>
+            <div class="owner-count">15件（アクティブ）</div>
+          </div>
+        </div>
+        <div class="owner-stats">
+          <div class="owner-stat">
+            <span class="stat-label">Commit案件</span>
+            <span class="stat-value stat-commit">4件</span>
+          </div>
+          <div class="owner-stat">
+            <span class="stat-label">Upside案件</span>
+            <span class="stat-value" style="color: #f59e0b;">11件</span>
+          </div>
+        </div>
+      </div>
+      <div class="owner-card">
+        <div class="owner-header">
+          <div class="owner-avatar" style="background: #10b981;">中</div>
+          <div>
+            <div class="owner-name">中山</div>
+            <div class="owner-count">9件（アクティブ）</div>
+          </div>
+        </div>
+        <div class="owner-stats">
+          <div class="owner-stat">
+            <span class="stat-label">Commit案件</span>
+            <span class="stat-value stat-commit">6件</span>
+          </div>
+          <div class="owner-stat">
+            <span class="stat-label">Upside案件</span>
+            <span class="stat-value" style="color: #f59e0b;">3件</span>
+          </div>
+        </div>
+      </div>
+      <div class="owner-card">
+        <div class="owner-header">
+          <div class="owner-avatar" style="background: #f59e0b;">甲</div>
+          <div>
+            <div class="owner-name">甲谷</div>
+            <div class="owner-count">4件（アクティブ）</div>
+          </div>
+        </div>
+        <div class="owner-stats">
+          <div class="owner-stat">
+            <span class="stat-label">Commit案件</span>
+            <span class="stat-value stat-commit">4件</span>
+          </div>
+          <div class="owner-stat">
+            <span class="stat-label">Upside案件</span>
+            <span class="stat-value" style="color: #f59e0b;">0件</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Commit Deals Table - FULL LIST -->
+    <div class="table-card">
+      <div class="table-header">
+        <h3>📋 Commit案件一覧（全15件）</h3>
+        <div class="table-summary">合計MRR: ¥155万/月</div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>企業名</th>
+            <th style="text-align: center;">担当</th>
+            <th style="text-align: right;">MRR</th>
+            <th>クローズ予定</th>
+            <th>備考</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- 佐藤 4件 -->
+          <tr>
+            <td>東レ株式会社</td>
+            <td style="text-align: center;"><span class="owner-tag owner-sato">佐藤</span></td>
+            <td style="text-align: right; font-weight: 600;">¥10万</td>
+            <td>2026-01-31</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>一志株式会社</td>
+            <td style="text-align: center;"><span class="owner-tag owner-sato">佐藤</span></td>
+            <td style="text-align: right; font-weight: 600;">¥10万</td>
+            <td>2026-01-31</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>日本ポリマー産業株式会社</td>
+            <td style="text-align: center;"><span class="owner-tag owner-sato">佐藤</span></td>
+            <td style="text-align: right; font-weight: 600;">¥10万</td>
+            <td>2026-02-28</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>中谷興運株式会社</td>
+            <td style="text-align: center;"><span class="owner-tag owner-sato">佐藤</span></td>
+            <td style="text-align: right; font-weight: 600;">¥10万</td>
+            <td>2026-02-28</td>
+            <td></td>
+          </tr>
+          <!-- 中山 6件 -->
+          <tr>
+            <td>株式会社野島角清製作所</td>
+            <td style="text-align: center;"><span class="owner-tag owner-nakayama">中山</span></td>
+            <td style="text-align: right; font-weight: 600;">¥10万</td>
+            <td>2026-01-31</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>株式会社タバタホールディングス</td>
+            <td style="text-align: center;"><span class="owner-tag owner-nakayama">中山</span></td>
+            <td style="text-align: right; font-weight: 600;">¥10万</td>
+            <td>2026-01-31</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>トーカドエナジー株式会社</td>
+            <td style="text-align: center;"><span class="owner-tag owner-nakayama">中山</span></td>
+            <td style="text-align: right; font-weight: 600;">¥10万</td>
+            <td>2026-02-28</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>株式会社大市珍味</td>
+            <td style="text-align: center;"><span class="owner-tag owner-nakayama">中山</span></td>
+            <td style="text-align: right; font-weight: 600;">¥10万</td>
+            <td>2026-02-28</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>三恵技研工業株式会社</td>
+            <td style="text-align: center;"><span class="owner-tag owner-nakayama">中山</span></td>
+            <td style="text-align: right; font-weight: 600;">¥15万</td>
+            <td>2026-02-28</td>
+            <td>🔥 高単価</td>
+          </tr>
+          <tr>
+            <td>本橋テープ株式会社</td>
+            <td style="text-align: center;"><span class="owner-tag owner-nakayama">中山</span></td>
+            <td style="text-align: right; font-weight: 600;">¥10万</td>
+            <td>2026-03-31</td>
+            <td></td>
+          </tr>
+          <!-- 甲谷 5件 -->
+          <tr style="background: #fef3c7;">
+            <td>株式会社ミトヨ</td>
+            <td style="text-align: center;"><span class="owner-tag owner-koya">甲谷</span></td>
+            <td style="text-align: right; font-weight: 600;">¥10万</td>
+            <td class="overdue">2026-01-01 ⚠️</td>
+            <td>要確認（期日超過）</td>
+          </tr>
+          <tr>
+            <td>株式会社カネカ</td>
+            <td style="text-align: center;"><span class="owner-tag owner-koya">甲谷</span></td>
+            <td style="text-align: right; font-weight: 600;">¥10万</td>
+            <td>2026-01-30</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>北海道糖業株式会社</td>
+            <td style="text-align: center;"><span class="owner-tag owner-koya">甲谷</span></td>
+            <td style="text-align: right; font-weight: 600;">¥10万</td>
+            <td>2026-01-31</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>穴織カーボン株式会社</td>
+            <td style="text-align: center;"><span class="owner-tag owner-koya">甲谷</span></td>
+            <td style="text-align: right; font-weight: 600;">¥10万</td>
+            <td>2026-01-31</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>株式会社高田工業所</td>
+            <td style="text-align: center;"><span class="owner-tag owner-koya">甲谷</span></td>
+            <td style="text-align: right; font-weight: 600;">¥10万</td>
+            <td>2026-02-28</td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Bottleneck Section -->
+    <div class="chart-card" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-left: 4px solid #f59e0b;">
+      <h3 style="color: #92400e;">⚠️ ボトルネック（要対応）</h3>
+      <p style="margin-top: 12px; color: #78350f; line-height: 1.8;">
+        トライアル→本導入の<strong>自走化</strong>が課題：<br>
+        ① <strong>書式作成</strong> - 顧客が自力で書式を作れるようになる<br>
+        ② <strong>データ出力・連携</strong> - 顧客が溜まったデータを出力し、既存システムへの連携の設定を行う<br>
+        ③ <strong>作業者への浸透</strong> - 電子帳票での記入が現場に定着する<br><br>
+        → これらを顧客が自力でできるようにすることがCVR改善の鍵
+      </p>
+    </div>
+    
+    <div class="footer">
+      ミライのゲンバ帳票 | トライアルCSパイプライン分析 | Generated by Claude
     </div>
   </div>
-
+  
   <script>
-    const rawData = [
-      { name: "JFEエンジニアリング", fullName: "JFEエンジニアリング株式会社_スターター_環境本部_2504-2603", stage: "22_パイロット", remainingDays: 85, progressRate: 76.6, amount: 100000, owner: "佐藤 哲太" },
-      { name: "センスビー", fullName: "株式会社センスビー_スターター_本社工場（神奈川）_2505-2604", stage: "21_セットアップ中", remainingDays: 115, progressRate: 68.4, amount: 10000, owner: "中山 徹" },
-      { name: "サーモテック", fullName: "株式会社サーモテック_スターター_本社工場（大阪）_2502-3001", stage: "21_セットアップ中", remainingDays: 1487, progressRate: 18.5, amount: 56000, owner: "中山 徹" },
-      { name: "日本ケロッグ", fullName: "日本ケロッグ合同会社_スターター_群馬工場_2508-2608", stage: "23_モメンタム", remainingDays: 238, progressRate: 37.0, amount: 150000, owner: "佐藤 哲太" },
-      { name: "タチエス", fullName: "株式会社タチエス_スターター_愛知/武蔵/鈴鹿工場_2508-2607", stage: "23_モメンタム", remainingDays: 207, progressRate: 43.1, amount: 100000, owner: "佐藤 哲太" },
-      { name: "日本触媒", fullName: "株式会社日本触媒_プロフェッショナル_姫路工場_2508-2608", stage: "21_セットアップ中", remainingDays: 238, progressRate: 37.0, amount: 380000, owner: "佐藤 哲太" },
-      { name: "東洋新薬", fullName: "株式会社東洋新薬_スターター_鳥栖工場_2507-2706", stage: "21_セットアップ中", remainingDays: 541, progressRate: 25.8, amount: 130000, owner: "佐藤 哲太" },
-      { name: "イワサキ", fullName: "株式会社イワサキ_スターター_大阪工場_2502-2601", stage: "25_チャーンリスク", remainingDays: 26, progressRate: 92.9, amount: 40000, owner: "佐藤 哲太" },
-      { name: "クライン", fullName: "株式会社クライン_青梅工場_2504-2603", stage: "21_セットアップ中", remainingDays: 85, progressRate: 76.6, amount: 50000, owner: "佐藤 哲太" },
-      { name: "ネクサス", fullName: "株式会社ネクサス_スターター_岩手工場_2502-2601", stage: "21_セットアップ中", remainingDays: 26, progressRate: 92.9, amount: 100000, owner: "佐藤 哲太" },
-      { name: "サンコー", fullName: "株式会社サンコー_堀金工場（長野）三田工場（長野）_2507-2608", stage: "22_パイロット", remainingDays: 238, progressRate: 44.1, amount: 100000, owner: "中山 徹" },
-      { name: "サンショウ", fullName: "サンショウ株式会社_スターター_浜松工場_2507-2606", stage: "23_モメンタム", remainingDays: 176, progressRate: 51.6, amount: 80000, owner: "佐藤 哲太" },
-      { name: "長坂樹脂工業", fullName: "有限会社長坂樹脂工業_スターター_岡崎工場_2510-2609", stage: "24_ステーブル", remainingDays: -5, progressRate: 105.5, amount: 50000, owner: "佐藤 哲太" },
-      { name: "シギヤ精機(26)", fullName: "株式会社シギヤ精機製作所_スターター_本社工場（広島）_2510-2512", stage: "26_CS対応リリース", remainingDays: -5, progressRate: 105.5, amount: 50000, owner: "佐藤 哲太" },
-      { name: "北陸建工(追加)", fullName: "北陸建工株式会社_iPad追加分_安田工場（富山）_2601-2703", stage: "28_契約更新完了", remainingDays: 450, progressRate: 0.9, amount: 105000, owner: "中山 徹" },
-      { name: "北陸建工", fullName: "北陸建工株式会社_スターター_安田工場（富山）_2504-2703", stage: "22_パイロット", remainingDays: 450, progressRate: 38.3, amount: 70000, owner: "中山 徹" },
-      { name: "シギヤ精機(28a)", fullName: "株式会社シギヤ精機製作所_スターター_本社工場（広島）_2507-2509", stage: "28_契約更新完了", remainingDays: -97, progressRate: 206.6, amount: 50000, owner: "落合 豊" },
-      { name: "シギヤ精機(28b)", fullName: "株式会社シギヤ精機製作所_スターター_本社工場（広島）_2504-2506", stage: "28_契約更新完了", remainingDays: -189, progressRate: 310.0, amount: 50000, owner: "落合 豊" },
-      { name: "ハイレックス", fullName: "株式会社ハイレックスコーポレーション_スターター_三ヶ日工場（静岡）_2507-3006", stage: "22_パイロット", remainingDays: 1637, progressRate: 10.3, amount: 80000, owner: "中山 徹" },
-      { name: "旭光電機", fullName: "旭光電機株式会社_スターター_明石工場（兵庫）_2506-2705", stage: "22_パイロット", remainingDays: 511, progressRate: 29.9, amount: 70000, owner: "中山 徹" },
-      { name: "ハイレックス宮城", fullName: "株式会社ハイレックス宮城_スターター_宮城工場（宮城）_2509-3008", stage: "21_セットアップ中", remainingDays: 1699, progressRate: 6.5, amount: 80000, owner: "中山 徹" },
-      { name: "MERF", fullName: "株式会社MERF_スターター_本社工場（富山）_2504-3003", stage: "21_セットアップ中", remainingDays: 1546, progressRate: 15.3, amount: 65000, owner: "中山 徹" },
-      { name: "大登建設工業", fullName: "大登建設工業株式会社_プラン名_伊万里工場（佐賀）_2505-2604", stage: "22_パイロット", remainingDays: 115, progressRate: 66.1, amount: 68000, owner: "中山 徹" },
-      { name: "エア・ウォーター防災", fullName: "エア・ウォーター防災株式会社_スターター_本社工場（兵庫）_2507-2606", stage: "23_モメンタム", remainingDays: 176, progressRate: 51.6, amount: 100000, owner: "中山 徹" },
-      { name: "昭和金属(28)", fullName: "昭和金属工業株式会社_スターター_大分工場（大分）_2408-2507", stage: "28_契約更新完了", remainingDays: -158, progressRate: 143.4, amount: 50000, owner: "落合 豊" },
-      { name: "シギヤ精機(28c)", fullName: "株式会社シギヤ精機製作所_スターター_本社工場（広島）_2410-2503", stage: "28_契約更新完了", remainingDays: -297, progressRate: 281.1, amount: 50000, owner: "落合 豊" },
-      { name: "日金(解約)", fullName: "株式会社日金_Renewal", stage: "29_解約", remainingDays: -57, progressRate: 100, amount: 50000, owner: "落合 豊" },
-      { name: "島田工業", fullName: "島田工業株式会社_スターター_本社・第一工場（群馬）_2502-2701", stage: "22_パイロット", remainingDays: 391, progressRate: 46.4, amount: 40000, owner: "中山 徹" },
-      { name: "スザキ工業所", fullName: "株式会社スザキ工業所_スターター_本社工場（岐阜）_2504-2703", stage: "24_ステーブル", remainingDays: 450, progressRate: 38.3, amount: 100000, owner: "中山 徹" },
-      { name: "ゼンショー", fullName: "株式会社ゼンショーファクトリーホールディングス_スターター_～～工場（XX）_2502-2701", stage: "22_パイロット", remainingDays: 391, progressRate: 46.4, amount: 70000, owner: "佐藤 哲太" },
-      { name: "松本工業(27)", fullName: "松本工業株式会社_スターター_豊前工場（大分）_2412-2511", stage: "27_契約更新合意", remainingDays: -36, progressRate: 109.9, amount: 50000, owner: "中山 徹" },
-      { name: "松本工業(新)", fullName: "松本工業株式会社_スターター_豊前工場（大分）_2512-2611", stage: "23_モメンタム", remainingDays: 329, progressRate: 9.6, amount: 50000, owner: "中山 徹" },
-      { name: "理学相原精機", fullName: "株式会社理学相原精機_スターター_本社工場（東京）_250808-260807", stage: "22_パイロット", remainingDays: 214, progressRate: 41.2, amount: 50000, owner: "佐藤 哲太" },
-      { name: "太平洋マテリアル", fullName: "太平洋マテリアル株式会社_熊谷工場（埼玉）小野田工場（山口）西多摩工場（東京）_2503-2602", stage: "22_パイロット", remainingDays: 54, progressRate: 85.2, amount: 100000, owner: "佐藤 哲太" },
-      { name: "昭和金属(伊万里)", fullName: "昭和金属工業株式会社_スターター_伊万里工場（広島）_2502-2601", stage: "22_パイロット", remainingDays: 26, progressRate: 92.9, amount: 50000, owner: "中山 徹" },
-      { name: "昭和金属(大分)", fullName: "昭和金属工業株式会社_スターター_大分工場（大分）_2508-2607", stage: "24_ステーブル", remainingDays: 207, progressRate: 43.1, amount: 50000, owner: "中山 徹" },
-    ];
-
-    const stageConfig = {
-      "21_セットアップ中": { label: "セットアップ中", color: "#00bcd4" },
-      "22_パイロット": { label: "パイロット", color: "#f44336" },
-      "23_モメンタム": { label: "モメンタム", color: "#ffeb3b", border: "#888" },
-      "24_ステーブル": { label: "ステーブル", color: "#4caf50" },
-      "25_チャーンリスク": { label: "チャーンリスク", color: "#9c27b0" },
-      "26_CS対応リリース": { label: "CS対応リリース", color: "#9e9e9e" },
-      "27_契約更新合意": { label: "契約更新合意", color: "#2196f3" },
-      "28_契約更新完了": { label: "契約更新完了", color: "#2196f3" },
-      "29_解約": { label: "解約", color: "#000000" },
-    };
-
-    let selectedStages = new Set(Object.keys(stageConfig));
-    let chart;
-
-    // フィルターボタンを作成
-    const filtersDiv = document.getElementById('filters');
-    Object.entries(stageConfig).forEach(([stage, config]) => {
-      const btn = document.createElement('button');
-      btn.textContent = config.label;
-      btn.dataset.stage = stage;
-      btn.style.background = config.color;
-      btn.style.color = ['22_パイロット', '25_チャーンリスク', '29_解約'].includes(stage) ? 'white' : 'black';
-      btn.onclick = () => toggleStage(stage, btn);
-      filtersDiv.appendChild(btn);
-    });
-
-    function toggleStage(stage, btn) {
-      if (selectedStages.has(stage)) {
-        selectedStages.delete(stage);
-        btn.classList.add('inactive');
-      } else {
-        selectedStages.add(stage);
-        btn.classList.remove('inactive');
-      }
-      updateChart();
-    }
-
-    function getFilteredData() {
-      return rawData.filter(d => 
-        selectedStages.has(d.stage) && 
-        d.remainingDays >= 0 && 
-        d.progressRate <= 100
-      );
-    }
-
-    function createDatasets() {
-      const grouped = {};
-      getFilteredData().forEach(d => {
-        if (!grouped[d.stage]) grouped[d.stage] = [];
-        grouped[d.stage].push({ x: d.remainingDays, y: d.progressRate, raw: d });
-      });
-
-      return Object.entries(grouped).map(([stage, points]) => ({
-        label: stageConfig[stage].label,
-        data: points,
-        backgroundColor: stageConfig[stage].color,
-        borderColor: stageConfig[stage].border || stageConfig[stage].color,
-        borderWidth: stageConfig[stage].border ? 2 : 1,
-        pointRadius: 8,
-        pointHoverRadius: 10,
-      }));
-    }
-
-    function initChart() {
-      const ctx = document.getElementById('chart').getContext('2d');
-      chart = new Chart(ctx, {
-        type: 'scatter',
-        data: { datasets: createDatasets() },
-        options: {
-          responsive: true,
-          maintainAspectRatio: true,
-          scales: {
-            x: {
-              reverse: true,
-              min: 0,
-              max: 600,
-              title: { display: true, text: '← 残り日数多い　　　　残り日数少ない →' },
-              ticks: { callback: v => v + '日' }
-            },
-            y: {
-              min: 0,
-              max: 100,
-              title: { display: true, text: '経過率 (%)' },
-              ticks: { callback: v => v + '%' }
+    // 月別クローズ予測チャート
+    const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
+    new Chart(monthlyCtx, {
+      type: 'bar',
+      data: {
+        labels: ['2026-01', '2026-02', '2026-03', '2026-04'],
+        datasets: [
+          {
+            label: 'Commit',
+            data: [80, 65, 10, 0],
+            backgroundColor: '#10b981',
+            stack: 'Stack 0',
+          },
+          {
+            label: 'Upside',
+            data: [28, 60, 20, 20],
+            backgroundColor: '#f59e0b',
+            stack: 'Stack 0',
+          },
+          {
+            label: '加重予測',
+            data: [80.6, 82.25, 17.5, 9],
+            type: 'line',
+            borderColor: '#8b5cf6',
+            backgroundColor: '#8b5cf6',
+            borderWidth: 3,
+            pointRadius: 6,
+            pointBackgroundColor: '#8b5cf6',
+            tension: 0.3,
+            yAxisID: 'y',
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top' },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => `${ctx.dataset.label}: ¥${ctx.raw}万`
             }
           },
-          plugins: {
-            tooltip: {
-              callbacks: {
-                label: (ctx) => {
-                  const d = ctx.raw.raw;
-                  return [
-                    d.fullName,
-                    `ステージ: ${stageConfig[d.stage].label}`,
-                    `残り日数: ${d.remainingDays}日`,
-                    `経過率: ${d.progressRate}%`,
-                    `月額: ¥${d.amount.toLocaleString()}`,
-                    `担当: ${d.owner}`
-                  ];
+          annotation: {
+            annotations: {
+              line1: {
+                type: 'line',
+                yMin: 100,
+                yMax: 100,
+                borderColor: '#ef4444',
+                borderWidth: 2,
+                borderDash: [5, 5],
+                label: {
+                  display: true,
+                  content: '月次目標 ¥100万',
+                  position: 'end',
+                  backgroundColor: '#ef4444',
+                  color: 'white',
+                  font: { size: 10 }
                 }
               }
-            },
-            legend: { display: false },
-            annotation: {
-              annotations: {
-                line1: { type: 'line', xMin: 180, xMax: 180, borderColor: '#999', borderDash: [5, 5], label: { content: '残り180日', enabled: true, position: 'start' } },
-                line2: { type: 'line', yMin: 50, yMax: 50, borderColor: '#999', borderDash: [5, 5], label: { content: '50%経過', enabled: true, position: 'end' } }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            max: 150,
+            title: { display: true, text: '万円' }
+          }
+        }
+      }
+    });
+    
+    // ARR予測チャート
+    const arrCtx = document.getElementById('arrChart').getContext('2d');
+    new Chart(arrCtx, {
+      type: 'bar',
+      data: {
+        labels: ['保守 (CVR60%)', 'ベース (CVR75%)', '強気 (CVR85%)'],
+        datasets: [{
+          label: '2026年末 ARR予測',
+          data: [4625, 5781, 6552],
+          backgroundColor: ['#94a3b8', '#3b82f6', '#10b981'],
+          borderRadius: 8,
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => `ARR: ¥${ctx.raw.toLocaleString()}万`
+            }
+          },
+          annotation: {
+            annotations: {
+              existing: {
+                type: 'line',
+                xMin: 1200,
+                xMax: 1200,
+                borderColor: '#6b7280',
+                borderWidth: 2,
+                borderDash: [3, 3],
+                label: {
+                  display: true,
+                  content: '既存 ¥1,200万',
+                  position: 'start',
+                  backgroundColor: '#6b7280',
+                  color: 'white'
+                }
+              },
+              target: {
+                type: 'line',
+                xMin: 8000,
+                xMax: 8000,
+                borderColor: '#ef4444',
+                borderWidth: 3,
+                label: {
+                  display: true,
+                  content: '目標 ¥8,000万',
+                  position: 'end',
+                  backgroundColor: '#ef4444',
+                  color: 'white'
+                }
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            beginAtZero: true,
+            max: 9000,
+            title: { display: true, text: '万円' }
+          }
+        }
+      }
+    });
+    
+    // 担当者別チャート（佐藤15件、中山9件、甲谷4件）
+    const ownerCtx = document.getElementById('ownerChart').getContext('2d');
+    new Chart(ownerCtx, {
+      type: 'bar',
+      data: {
+        labels: ['佐藤 (15件)', '中山 (9件)', '甲谷 (4件)'],
+        datasets: [
+          {
+            label: 'Commit',
+            data: [4, 6, 4],
+            backgroundColor: '#10b981',
+          },
+          {
+            label: 'Upside',
+            data: [11, 3, 0],
+            backgroundColor: '#f59e0b',
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top' },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => `${ctx.dataset.label}: ${ctx.raw}件`
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            title: { display: true, text: '件数' },
+            stacked: true
+          },
+          x: { stacked: true }
+        }
+      }
+    });
+    
+    // CVRチャート
+    const cvrCtx = document.getElementById('cvrChart').getContext('2d');
+    new Chart(cvrCtx, {
+      type: 'doughnut',
+      data: {
+        labels: ['成約 (34件)', 'ロスト (19件)'],
+        datasets: [{
+          data: [34, 19],
+          backgroundColor: ['#10b981', '#ef4444'],
+          borderWidth: 0,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom' },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                const pct = ((ctx.raw / total) * 100).toFixed(1);
+                return `${ctx.label}: ${pct}%`;
               }
             }
           }
         }
-      });
-    }
-
-    function updateChart() {
-      chart.data.datasets = createDatasets();
-      chart.update();
-    }
-
-    // 凡例を作成
-    const legendDiv = document.getElementById('legend');
-    Object.entries(stageConfig).forEach(([stage, config]) => {
-      const item = document.createElement('div');
-      item.className = 'legend-item';
-      item.innerHTML = `<div class="legend-color" style="background:${config.color};${config.border ? 'border:2px solid '+config.border : ''}"></div><span>${config.label}</span>`;
-      legendDiv.appendChild(item);
+      }
     });
-
-    initChart();
   </script>
 </body>
 </html>
